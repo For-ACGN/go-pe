@@ -20,13 +20,13 @@ import (
 	"unicode"
 	"unsafe"
 
-	peparser "github.com/saferwall/pe"
+	"github.com/saferwall/pe"
 	"github.com/saferwall/pe/log"
 )
 
 var (
 	wg   sync.WaitGroup
-	jobs chan string = make(chan string)
+	jobs = make(chan string)
 )
 
 func loopFilesWorker(cfg config) error {
@@ -222,22 +222,19 @@ func parsePE(filename string, cfg config) {
 
 	log.Infof("parsing filename %s", filename)
 
-	data, _ := os.ReadFile(filename)
-	pe, err := peparser.NewBytes(data, &peparser.Options{
+	peFile, err := pe.Open(filename, &pe.Options{
 		Logger:                logger,
 		DisableCertValidation: false,
 		Fast:                  false,
 	})
-
 	if err != nil {
 		log.Infof("Error while opening file: %s, reason: %s", filename, err)
 		return
 	}
-	defer pe.Close()
 
-	err = pe.Parse()
+	err = peFile.Parse()
 	if err != nil {
-		if err != peparser.ErrDOSMagicNotFound {
+		if err != pe.ErrDOSMagicNotFound {
 			log.Infof("Error while parsing file: %s, reason: %s", filename, err)
 		}
 		return
@@ -252,9 +249,9 @@ func parsePE(filename string, cfg config) {
 	// f.WriteString(prettyPrint(pe))
 
 	if cfg.wantDOSHeader {
-		DOSHeader := pe.DOSHeader
+		DOSHeader := peFile.DOSHeader
 		magic := string(IntToByteArray(uint64(DOSHeader.Magic)))
-		signature := string(IntToByteArray(uint64(pe.NtHeader.Signature)))
+		signature := string(IntToByteArray(uint64(peFile.NtHeader.Signature)))
 		w := tabwriter.NewWriter(os.Stdout, 1, 1, 3, ' ', tabwriter.AlignRight)
 		fmt.Print("\n\t------[ DOS Header ]------\n\n")
 		fmt.Fprintf(w, "Magic:\t 0x%x (%s)\n", DOSHeader.Magic, magic)
@@ -277,18 +274,18 @@ func parsePE(filename string, cfg config) {
 		w.Flush()
 	}
 
-	if cfg.wantRichHeader && pe.FileInfo.HasRichHdr {
-		richHeader := pe.RichHeader
+	if cfg.wantRichHeader && peFile.FileInfo.HasRichHdr {
+		richHeader := peFile.RichHeader
 		fmt.Printf("\nRICH HEADER\n***********\n")
 		w := tabwriter.NewWriter(os.Stdout, 1, 1, 3, ' ', tabwriter.AlignRight)
 		fmt.Fprintf(w, "\t0x%x\t XOR Key\n", richHeader.XORKey)
 		fmt.Fprintf(w, "\t0x%x\t DanS offset\n", richHeader.DansOffset)
-		fmt.Fprintf(w, "\t0x%x\t Checksum\n\n", pe.RichHeaderChecksum())
+		fmt.Fprintf(w, "\t0x%x\t Checksum\n\n", peFile.RichHeaderChecksum())
 		fmt.Fprintln(w, "ProductID\tMinorCV\tCount\tUnmasked\tMeaning\tVSVersion\t")
-		for _, compID := range pe.RichHeader.CompIDs {
+		for _, compID := range peFile.RichHeader.CompIDs {
 			fmt.Fprintf(w, "0x%x\t0x%x\t0x%x\t0x%x\t%s\t%s\t\n",
 				compID.ProdID, compID.MinorCV, compID.Count, compID.Unmasked,
-				peparser.ProdIDtoStr(compID.ProdID), peparser.ProdIDtoVSversion(compID.ProdID))
+				pe.ProdIDtoStr(compID.ProdID), pe.ProdIDtoVSversion(compID.ProdID))
 		}
 		w.Flush()
 		fmt.Print("\n   ---Raw header dump---\n")
@@ -296,7 +293,7 @@ func parsePE(filename string, cfg config) {
 	}
 
 	if cfg.wantNTHeader {
-		ntHeader := pe.NtHeader.FileHeader
+		ntHeader := peFile.NtHeader.FileHeader
 		w := tabwriter.NewWriter(os.Stdout, 1, 1, 3, ' ', tabwriter.AlignRight)
 		characteristics := strings.Join(ntHeader.Characteristics.String(), " | ")
 
@@ -312,10 +309,10 @@ func parsePE(filename string, cfg config) {
 		w.Flush()
 
 		fmt.Print("\n\t------[ Optional Header ]------\n\n")
-		if pe.Is64 {
-			oh := pe.NtHeader.OptionalHeader.(peparser.ImageOptionalHeader64)
+		if peFile.Is64 {
+			oh := peFile.NtHeader.OptionalHeader.(pe.ImageOptionalHeader64)
 			dllCharacteristics := strings.Join(oh.DllCharacteristics.String(), " | ")
-			fmt.Fprintf(w, "Magic:\t 0x%x (%s)\n", oh.Magic, pe.PrettyOptionalHeaderMagic())
+			fmt.Fprintf(w, "Magic:\t 0x%x (%s)\n", oh.Magic, peFile.PrettyOptionalHeaderMagic())
 			fmt.Fprintf(w, "Major Linker Version:\t 0x%x\n", oh.MajorLinkerVersion)
 			fmt.Fprintf(w, "Minor Linker Version:\t 0x%x\n", oh.MinorLinkerVersion)
 			fmt.Fprintf(w, "Size Of Code:\t 0x%x (%s)\n", oh.SizeOfCode, BytesSize(float64(oh.SizeOfCode)))
@@ -349,15 +346,15 @@ func parsePE(filename string, cfg config) {
 			fmt.Fprintf(w, "Loader Flags:\t 0x%x\n", oh.LoaderFlags)
 			fmt.Fprintf(w, "Number Of RVA And Sizes:\t 0x%x\n", oh.NumberOfRvaAndSizes)
 			fmt.Fprintf(w, "\n")
-			for entry := peparser.ImageDirectoryEntry(0); entry < peparser.ImageNumberOfDirectoryEntries; entry++ {
+			for entry := pe.ImageDirectoryEntry(0); entry < pe.ImageNumberOfDirectoryEntries; entry++ {
 				rva := oh.DataDirectory[entry].VirtualAddress
 				size := oh.DataDirectory[entry].Size
 				fmt.Fprintf(w, "%s Table:\t RVA: 0x%0.8x\t Size:0x%0.8x\t\n", entry.String(), rva, size)
 			}
 		} else {
-			oh := pe.NtHeader.OptionalHeader.(peparser.ImageOptionalHeader32)
+			oh := peFile.NtHeader.OptionalHeader.(pe.ImageOptionalHeader32)
 			dllCharacteristics := strings.Join(oh.DllCharacteristics.String(), " | ")
-			fmt.Fprintf(w, "Magic:\t 0x%x (%s)\n", oh.Magic, pe.PrettyOptionalHeaderMagic())
+			fmt.Fprintf(w, "Magic:\t 0x%x (%s)\n", oh.Magic, peFile.PrettyOptionalHeaderMagic())
 			fmt.Fprintf(w, "Major Linker Version:\t 0x%x\n", oh.MajorLinkerVersion)
 			fmt.Fprintf(w, "Minor Linker Version:\t 0x%x\n", oh.MinorLinkerVersion)
 			fmt.Fprintf(w, "Size Of Code:\t 0x%x (%s)\n", oh.SizeOfCode, BytesSize(float64(oh.SizeOfCode)))
@@ -391,7 +388,7 @@ func parsePE(filename string, cfg config) {
 			fmt.Fprintf(w, "Loader Flags:\t 0x%x\n", oh.LoaderFlags)
 			fmt.Fprintf(w, "Number Of RVA And Sizes:\t 0x%x\n", oh.NumberOfRvaAndSizes)
 			fmt.Fprintf(w, "\n")
-			for entry := peparser.ImageDirectoryEntry(0); entry < peparser.ImageNumberOfDirectoryEntries; entry++ {
+			for entry := pe.ImageDirectoryEntry(0); entry < pe.ImageNumberOfDirectoryEntries; entry++ {
 				rva := oh.DataDirectory[entry].VirtualAddress
 				size := oh.DataDirectory[entry].Size
 				fmt.Fprintf(w, "%s Table:\t RVA: 0x%0.8x\t Size:0x%0.8x\t\n", entry.String(), rva, size)
@@ -400,12 +397,12 @@ func parsePE(filename string, cfg config) {
 		w.Flush()
 	}
 
-	if cfg.wantCOFF && pe.FileInfo.HasCOFF {
+	if cfg.wantCOFF && peFile.FileInfo.HasCOFF {
 		fmt.Printf("\nCOFF\n****\n")
 		w := tabwriter.NewWriter(os.Stdout, 1, 1, 3, ' ', tabwriter.AlignRight)
 		fmt.Fprintln(w, "Name\tValue\tSectionNumber\tType\tStorageClass\tNumberOfAuxSymbols\t")
-		for _, sym := range pe.COFF.SymbolTable {
-			symName, _ := sym.String(pe)
+		for _, sym := range peFile.COFF.SymbolTable {
+			symName, _ := sym.String(peFile)
 			fmt.Fprintf(w, "%s\t0x%x\t0x%x\t0x%x\t0x%x\t0x%x\t\n",
 				symName, sym.Value, sym.SectionNumber,
 				sym.Type, sym.StorageClass, sym.NumberOfAuxSymbols)
@@ -413,9 +410,9 @@ func parsePE(filename string, cfg config) {
 		w.Flush()
 	}
 
-	if cfg.wantSections && pe.FileInfo.HasSections {
+	if cfg.wantSections && peFile.FileInfo.HasSections {
 		w := tabwriter.NewWriter(os.Stdout, 1, 1, 3, ' ', tabwriter.AlignRight)
-		for i, sec := range pe.Sections {
+		for i, sec := range peFile.Sections {
 			hdr := sec.Header
 			fmt.Printf("\n\t------[ Section Header #%d ]------\n\n", i)
 			fmt.Fprintf(w, "Name:\t %v (%s)\n", hdr.Name, sec.String())
@@ -431,18 +428,18 @@ func parsePE(filename string, cfg config) {
 			fmt.Fprintf(w, "Number Of Line Numbers:\t 0x%x\n", hdr.NumberOfLineNumbers)
 			fmt.Fprintf(w, "Characteristics:\t 0x%x (%s)\n", hdr.Characteristics,
 				strings.Join(sec.PrettySectionFlags(), " | "))
-			fmt.Fprintf(w, "Entropy:\t %f\n", sec.CalculateEntropy(pe))
+			fmt.Fprintf(w, "Entropy:\t %f\n", sec.CalculateEntropy(peFile))
 			w.Flush()
 
 			fmt.Fprintf(w, "\n")
-			hexDumpSize(sec.Data(0, hdr.PointerToRawData, pe), 128)
+			hexDumpSize(sec.Data(0, hdr.PointerToRawData, peFile), 128)
 		}
 	}
 
-	if cfg.wantImport && pe.FileInfo.HasImport {
+	if cfg.wantImport && peFile.FileInfo.HasImport {
 		fmt.Printf("\nIMPORTS\n********\n")
 		w := tabwriter.NewWriter(os.Stdout, 1, 1, 3, ' ', tabwriter.AlignRight)
-		for _, imp := range pe.Imports {
+		for _, imp := range peFile.Imports {
 			desc := imp.Descriptor
 			fmt.Printf("\n\t------[ %s ]------\n\n", imp.Name)
 			fmt.Fprintf(w, "Name:\t 0x%x\n", desc.Name)
@@ -463,11 +460,11 @@ func parsePE(filename string, cfg config) {
 		}
 	}
 
-	if cfg.wantResource && pe.FileInfo.HasResource {
-		var printRsrcDir func(rsrcDir peparser.ResourceDirectory)
+	if cfg.wantResource && peFile.FileInfo.HasResource {
+		var printRsrcDir func(rsrcDir pe.ResourceDirectory)
 		padding := 0
 
-		printRsrcDataEntry := func(entry peparser.ResourceDataEntry) {
+		printRsrcDataEntry := func(entry pe.ResourceDataEntry) {
 			padding++
 			w := tabwriter.NewWriter(os.Stdout, 1, 1, padding, ' ', 0)
 			imgRsrcDataEntry := entry.Struct
@@ -477,12 +474,12 @@ func parsePE(filename string, cfg config) {
 			fmt.Fprintf(w, "|- Code Page: 0x%x\n\t", imgRsrcDataEntry.CodePage)
 			fmt.Fprintf(w, "|- Reserved: 0x%x\n\t", imgRsrcDataEntry.Reserved)
 			fmt.Fprintf(w, "|- Language: %d (%s)\n\t", entry.Lang, entry.Lang.String())
-			fmt.Fprintf(w, "|- Sub-language: %s\n\t", peparser.PrettyResourceLang(entry.Lang, int(entry.SubLang)))
+			fmt.Fprintf(w, "|- Sub-language: %s\n\t", pe.PrettyResourceLang(entry.Lang, int(entry.SubLang)))
 			w.Flush()
 			padding--
 		}
 
-		printRsrcDir = func(rsrcDir peparser.ResourceDirectory) {
+		printRsrcDir = func(rsrcDir pe.ResourceDirectory) {
 			padding++
 			w := tabwriter.NewWriter(os.Stdout, 1, 1, padding, ' ', 0)
 			imgRsrcDir := rsrcDir.Struct
@@ -502,8 +499,8 @@ func parsePE(filename string, cfg config) {
 
 				// Print the interpretation of a resource ID only in root node.
 				if padding == 2 {
-					if entry.ID <= peparser.RTManifest {
-						fmt.Fprintf(w, " (%s)", peparser.ResourceType(entry.ID).String())
+					if entry.ID <= pe.RTManifest {
+						fmt.Fprintf(w, " (%s)", pe.ResourceType(entry.ID).String())
 					}
 				}
 				fmt.Fprintf(w, "\n\t|- Name: 0x%x\n\t", entry.Struct.Name)
@@ -525,9 +522,9 @@ func parsePE(filename string, cfg config) {
 		}
 
 		fmt.Printf("\nRESOURCES\n**********\n")
-		printRsrcDir(pe.Resources)
+		printRsrcDir(peFile.Resources)
 
-		versionInfo, err := pe.ParseVersionResources()
+		versionInfo, err := peFile.ParseVersionResources()
 		if err != nil {
 			log.Errorf("failed to parse version resources: %v", err)
 		} else {
@@ -535,15 +532,15 @@ func parsePE(filename string, cfg config) {
 		}
 	}
 
-	if cfg.wantException && pe.FileInfo.HasException {
+	if cfg.wantException && peFile.FileInfo.HasException {
 		fmt.Printf("\nEXCEPTIONS\n***********\n")
-		for _, exception := range pe.Exceptions {
+		for _, exception := range peFile.Exceptions {
 			entry := exception.RuntimeFunction
 			fmt.Printf("\n\u27A1 BeginAddress: 0x%x EndAddress:0x%x UnwindInfoAddress:0x%x\t\n",
 				entry.BeginAddress, entry.EndAddress, entry.UnwindInfoAddress)
 
 			ui := exception.UnwindInfo
-			handlerFlags := peparser.PrettyUnwindInfoHandlerFlags(ui.Flags)
+			handlerFlags := pe.PrettyUnwindInfoHandlerFlags(ui.Flags)
 			prettyFlags := strings.Join(handlerFlags, ",")
 			fmt.Printf("|- Version: 0x%x\n", ui.Version)
 			fmt.Printf("|- Flags: 0x%x", ui.Flags)
@@ -564,10 +561,10 @@ func parsePE(filename string, cfg config) {
 		}
 	}
 
-	if cfg.wantCertificate && pe.FileInfo.HasCertificate {
+	if cfg.wantCertificate && peFile.FileInfo.HasCertificate {
 		fmt.Printf("\nSECURITY\n*********\n")
 
-		cert := pe.Certificates
+		cert := peFile.Certificates
 		w := tabwriter.NewWriter(os.Stdout, 1, 1, 3, ' ', tabwriter.AlignRight)
 		fmt.Fprintln(w, "Length\tRevision\tCertificateType\t")
 		fmt.Fprintf(w, "0x%x\t0x%x\t0x%x\t\n", cert.Header.Length, cert.Header.Revision,
@@ -589,26 +586,26 @@ func parsePE(filename string, cfg config) {
 		}
 
 		// Calculate the PE authentihash.
-		pe.Authentihash()
+		peFile.Authentihash()
 	}
 
-	if cfg.wantReloc && pe.FileInfo.HasReloc {
+	if cfg.wantReloc && peFile.FileInfo.HasReloc {
 		fmt.Printf("\nRELOCATIONS\n***********\n")
-		for _, reloc := range pe.Relocations {
+		for _, reloc := range peFile.Relocations {
 			fmt.Printf("\n\u27A1 Virtual Address: 0x%x | Size Of Block:0x%x | Entries Count:0x%x\t\n",
 				reloc.Data.VirtualAddress, reloc.Data.SizeOfBlock, len(reloc.Entries))
 			fmt.Print("|- Entries:\n")
 			for _, relocEntry := range reloc.Entries {
 				fmt.Printf("|-  Data: 0x%x |  Offset: 0x%x | Type:0x%x (%s)\n", relocEntry.Data,
-					relocEntry.Offset, relocEntry.Type, relocEntry.Type.String(pe))
+					relocEntry.Offset, relocEntry.Type, relocEntry.Type.String(peFile))
 			}
 		}
 	}
 
-	if cfg.wantDebug && pe.FileInfo.HasDebug {
+	if cfg.wantDebug && peFile.FileInfo.HasDebug {
 		fmt.Printf("\nDEBUGS\n*******\n")
 		w := tabwriter.NewWriter(os.Stdout, 1, 1, 3, ' ', tabwriter.AlignRight)
-		for _, debug := range pe.Debugs {
+		for _, debug := range peFile.Debugs {
 			imgDbgDir := debug.Struct
 			fmt.Fprintf(w, "\n\t------[ %s ]------\n", debug.Type)
 			fmt.Fprintf(w, "Characteristics:\t 0x%x\n", imgDbgDir.Characteristics)
@@ -623,20 +620,20 @@ func parsePE(filename string, cfg config) {
 			fmt.Fprintf(w, "Pointer To Raw Data:\t 0x%x\n", imgDbgDir.PointerToRawData)
 			fmt.Fprintf(w, "\n")
 			switch imgDbgDir.Type {
-			case peparser.ImageDebugTypeCodeView:
-				debugSignature, err := pe.ReadUint32(imgDbgDir.PointerToRawData)
+			case pe.ImageDebugTypeCodeView:
+				debugSignature, err := peFile.ReadUint32(imgDbgDir.PointerToRawData)
 				if err != nil {
 					continue
 				}
-				if debugSignature == peparser.CVSignatureRSDS {
-					pdb := debug.Info.(peparser.CVInfoPDB70)
+				if debugSignature == pe.CVSignatureRSDS {
+					pdb := debug.Info.(pe.CVInfoPDB70)
 					fmt.Fprintf(w, "CV Signature:\t 0x%x (%s)\n", pdb.CVSignature,
 						pdb.CVSignature.String())
 					fmt.Fprintf(w, "Signature:\t %s\n", pdb.Signature.String())
 					fmt.Fprintf(w, "Age:\t 0x%x\n", pdb.Age)
 					fmt.Fprintf(w, "PDB FileName:\t %s\n", pdb.PDBFileName)
-				} else if debugSignature == peparser.CVSignatureNB10 {
-					pdb := debug.Info.(peparser.CVInfoPDB20)
+				} else if debugSignature == pe.CVSignatureNB10 {
+					pdb := debug.Info.(pe.CVInfoPDB20)
 					fmt.Fprintf(w, "CV Header Signature:\t 0x%x (%s)\n",
 						pdb.CVHeader.Signature, pdb.CVHeader.Signature.String())
 					fmt.Fprintf(w, "CV Header Offset:\t 0x%x\n", pdb.CVHeader.Offset)
@@ -646,8 +643,8 @@ func parsePE(filename string, cfg config) {
 					fmt.Fprintf(w, "PDBFileName:\t %s\n", pdb.PDBFileName)
 
 				}
-			case peparser.ImageDebugTypePOGO:
-				pogo := debug.Info.(peparser.POGO)
+			case pe.ImageDebugTypePOGO:
+				pogo := debug.Info.(pe.POGO)
 				if len(pogo.Entries) > 0 {
 					fmt.Fprintf(w, "Signature:\t 0x%x (%s)\n\n", pogo.Signature,
 						pogo.Signature.String())
@@ -656,26 +653,26 @@ func parsePE(filename string, cfg config) {
 					for _, pogoEntry := range pogo.Entries {
 						fmt.Fprintf(w, "0x%x\t0x%x\t%s\t%s\t\n", pogoEntry.RVA,
 							pogoEntry.Size, pogoEntry.Name,
-							peparser.SectionAttributeDescription(pogoEntry.Name))
+							pe.SectionAttributeDescription(pogoEntry.Name))
 					}
 				}
-			case peparser.ImageDebugTypeRepro:
-				repro := debug.Info.(peparser.REPRO)
+			case pe.ImageDebugTypeRepro:
+				repro := debug.Info.(pe.REPRO)
 				fmt.Fprintf(w, "Hash:\t %x\n", repro.Hash)
 				fmt.Fprintf(w, "Size:\t 0x%x (%s)\n", repro.Size, BytesSize(float64(repro.Size)))
-			case peparser.ImageDebugTypeExDllCharacteristics:
-				exDllCharacteristics := debug.Info.(peparser.DllCharacteristicsExType)
+			case pe.ImageDebugTypeExDllCharacteristics:
+				exDllCharacteristics := debug.Info.(pe.DllCharacteristicsExType)
 				fmt.Fprintf(w, "Value:\t %d (%s)\n", exDllCharacteristics,
 					exDllCharacteristics.String())
-			case peparser.ImageDebugTypeVCFeature:
-				VCFeature := debug.Info.(peparser.VCFeature)
+			case pe.ImageDebugTypeVCFeature:
+				VCFeature := debug.Info.(pe.VCFeature)
 				fmt.Fprintf(w, "Pre VC11:\t 0x%x\n", VCFeature.PreVC11)
 				fmt.Fprintf(w, "C/C++:\t 0x%x\n", VCFeature.CCpp)
 				fmt.Fprintf(w, "/GS:\t 0x%x\n", VCFeature.Gs)
 				fmt.Fprintf(w, "/sdl:\t 0x%x\n", VCFeature.Sdl)
 				fmt.Fprintf(w, "GuardN:\t 0x%x\n", VCFeature.GuardN)
-			case peparser.ImageDebugTypeFPO:
-				fpo := debug.Info.([]peparser.FPOData)
+			case pe.ImageDebugTypeFPO:
+				fpo := debug.Info.([]pe.FPOData)
 				if len(fpo) > 0 {
 					fmt.Fprintln(w, "OffsetStart\tProcSize\tNumLocals\tParamsSize\tPrologLength\tSavedRegsCount\tHasSEH\tUseBP\tReserved\tFrameType\t")
 					fmt.Fprintln(w, "------\t------\t------\t------\t------\t------\t------\t------\t------\t------\t")
@@ -693,11 +690,11 @@ func parsePE(filename string, cfg config) {
 		w.Flush()
 	}
 
-	if cfg.wantBoundImp && pe.FileInfo.HasBoundImp {
+	if cfg.wantBoundImp && peFile.FileInfo.HasBoundImp {
 		fmt.Printf("\nBOUND IMPORTS\n************\n")
 
 		w := tabwriter.NewWriter(os.Stdout, 1, 1, 3, ' ', tabwriter.AlignRight)
-		for _, bndImp := range pe.BoundImports {
+		for _, bndImp := range peFile.BoundImports {
 			fmt.Printf("\n\t------[ %s ]------\n\n", bndImp.Name)
 			fmt.Fprintf(w, "TimeDateStamp:\t 0x%x (%s)\n", bndImp.Struct.TimeDateStamp,
 				humanizeTimestamp(bndImp.Struct.TimeDateStamp))
@@ -716,13 +713,13 @@ func parsePE(filename string, cfg config) {
 		}
 	}
 
-	if cfg.wantTLS && pe.FileInfo.HasTLS {
+	if cfg.wantTLS && peFile.FileInfo.HasTLS {
 		fmt.Printf("\nTLS\n*****\n\n")
 
-		tls := pe.TLS
+		tls := peFile.TLS
 		w := tabwriter.NewWriter(os.Stdout, 1, 1, 3, ' ', tabwriter.AlignRight)
-		if pe.Is64 {
-			imgTLSDirectory64 := tls.Struct.(peparser.ImageTLSDirectory64)
+		if peFile.Is64 {
+			imgTLSDirectory64 := tls.Struct.(pe.ImageTLSDirectory64)
 			fmt.Fprintf(w, "Start Address Of Raw Data:\t 0x%x\n", imgTLSDirectory64.StartAddressOfRawData)
 			fmt.Fprintf(w, "End Address Of Raw Data:\t 0x%x\n", imgTLSDirectory64.EndAddressOfRawData)
 			fmt.Fprintf(w, "Address Of Index:\t %x\n", imgTLSDirectory64.AddressOfIndex)
@@ -737,7 +734,7 @@ func parsePE(filename string, cfg config) {
 				}
 			}
 		} else {
-			imgTLSDirectory32 := tls.Struct.(peparser.ImageTLSDirectory32)
+			imgTLSDirectory32 := tls.Struct.(pe.ImageTLSDirectory32)
 			fmt.Fprintf(w, "Start Address Of Raw Data:\t 0x%x\n", imgTLSDirectory32.StartAddressOfRawData)
 			fmt.Fprintf(w, "End Address Of Raw Data:\t 0x%x\n", imgTLSDirectory32.EndAddressOfRawData)
 			fmt.Fprintf(w, "Address Of Index:\t %x\n", imgTLSDirectory32.AddressOfIndex)
@@ -756,10 +753,10 @@ func parsePE(filename string, cfg config) {
 		w.Flush()
 	}
 
-	if cfg.wantLoadCfg && pe.FileInfo.HasLoadCFG {
+	if cfg.wantLoadCfg && peFile.FileInfo.HasLoadCFG {
 		fmt.Printf("\nLOAD CONFIG\n************\n\n")
 
-		loadConfig := pe.LoadConfig
+		loadConfig := peFile.LoadConfig
 		w := tabwriter.NewWriter(os.Stdout, 1, 1, 3, ' ', tabwriter.TabIndent)
 		v := reflect.ValueOf(loadConfig.Struct)
 		typeOfS := v.Type()
@@ -778,11 +775,11 @@ func parsePE(filename string, cfg config) {
 		w.Flush()
 	}
 
-	if cfg.wantCLR && pe.FileInfo.HasCLR {
+	if cfg.wantCLR && peFile.FileInfo.HasCLR {
 		fmt.Printf("\nCLR\n****\n")
 
 		fmt.Print("\n\t------[ CLR Header ]------\n\n")
-		clr := pe.CLR
+		clr := peFile.CLR
 		w := tabwriter.NewWriter(os.Stdout, 1, 1, 3, ' ', tabwriter.AlignRight)
 
 		clrHdr := clr.CLRHeader
@@ -850,14 +847,14 @@ func parsePE(filename string, cfg config) {
 		}
 		w.Flush()
 
-		for table, modTable := range pe.CLR.MetadataTables {
+		for table, modTable := range peFile.CLR.MetadataTables {
 			switch table {
-			case peparser.Module:
+			case pe.Module:
 				fmt.Print("\n\t[Modules]\n\t---------\n")
-				modTableRows := modTable.Content.([]peparser.ModuleTableRow)
+				modTableRows := modTable.Content.([]pe.ModuleTableRow)
 				for _, modTableRow := range modTableRows {
-					modName := pe.GetStringFromData(modTableRow.Name, pe.CLR.MetadataStreams["#Strings"])
-					Mvid := pe.GetStringFromData(modTableRow.Mvid, pe.CLR.MetadataStreams["#GUID"])
+					modName := peFile.GetStringFromData(modTableRow.Name, peFile.CLR.MetadataStreams["#Strings"])
+					Mvid := peFile.GetStringFromData(modTableRow.Mvid, peFile.CLR.MetadataStreams["#GUID"])
 					MvidStr := hex.EncodeToString(Mvid)
 					fmt.Fprintf(w, "Generation:\t 0x%x\n", modTableRow.Generation)
 					fmt.Fprintf(w, "Name:\t 0x%x (%s)\n", modTableRow.Name, string(modName))
@@ -872,18 +869,18 @@ func parsePE(filename string, cfg config) {
 	}
 
 	// Get file type.
-	if pe.IsEXE() {
+	if peFile.IsEXE() {
 		log.Debug("File is Exe")
 	}
-	if pe.IsDLL() {
+	if peFile.IsDLL() {
 		log.Debug("File is DLL")
 	}
-	if pe.IsDriver() {
+	if peFile.IsDriver() {
 		log.Debug("File is Driver")
 	}
 
 	// Calculate the PE checksum.
-	pe.Checksum()
+	peFile.Checksum()
 
 	fmt.Print("\n")
 }
