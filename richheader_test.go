@@ -116,7 +116,7 @@ func TestParseRichHeader(t *testing.T) {
 			richHeader := file.RichHeader
 			if !reflect.DeepEqual(richHeader, tt.out.richHeader) {
 				t.Errorf("rich header test failed, got %v, want %v",
-				richHeader, tt.out)
+					richHeader, tt.out)
 			}
 
 			prodID := richHeader.CompIDs[tt.out.compIDIndex].ProdID

@@ -6,7 +6,6 @@ package pe
 
 import (
 	"errors"
-	"github.com/edsrzf/mmap-go"
 	"os"
 
 	"github.com/saferwall/pe/log"
@@ -35,7 +34,7 @@ type File struct {
 	IAT          []IATEntry                  `json:"iat,omitempty"`
 	Anomalies    []string                    `json:"anomalies,omitempty"`
 	Header       []byte
-	data         mmap.MMap
+	data         []byte
 	FileInfo
 	size          uint32
 	OverlayOffset int64
