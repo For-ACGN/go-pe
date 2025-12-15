@@ -8,11 +8,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"golang.org/x/text/encoding/unicode"
 	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"golang.org/x/text/encoding/unicode"
 )
 
 const (
