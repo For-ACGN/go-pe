@@ -34,13 +34,15 @@ type File struct {
 	CLR          CLRData                     `json:"clr,omitempty"`
 	IAT          []IATEntry                  `json:"iat,omitempty"`
 	Anomalies    []string                    `json:"anomalies,omitempty"`
-	Header       []byte
-	data         []byte
-	FileInfo
-	size          uint32
+
+	Header        []byte
 	OverlayOffset int64
-	opts          *Options
-	logger        *log.Helper
+	FileInfo
+
+	data   []byte
+	size   uint32
+	opts   *Options
+	logger *log.Helper
 }
 
 // Options that influence the PE parsing behaviour.
@@ -162,7 +164,6 @@ func New(data []byte, opts *Options) (*File, error) {
 
 // Parse performs the file parsing for a PE binary.
 func (pe *File) Parse() error {
-
 	// check for the smallest PE size.
 	if len(pe.data) < TinyPESize {
 		return ErrInvalidPESize
