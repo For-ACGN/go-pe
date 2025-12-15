@@ -283,13 +283,7 @@ func (pe *File) AuthentihashExt(hashers ...hash.Hash) [][]byte {
 	}
 	ranges = append(ranges, &Range{Start: start, End: pe.size})
 
-	var rd io.ReaderAt
-	if pe.f != nil {
-		rd = pe.f
-	} else {
-		rd = bytes.NewReader(pe.data)
-	}
-
+	rd := bytes.NewReader(pe.data)
 	for _, v := range ranges {
 		for _, hasher := range hashers {
 			sr := io.NewSectionReader(rd, int64(v.Start), int64(v.End)-int64(v.Start))
