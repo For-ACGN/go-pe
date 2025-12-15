@@ -6,6 +6,7 @@ package pe
 
 import (
 	"errors"
+	"io"
 	"os"
 
 	"github.com/saferwall/pe/log"
@@ -38,7 +39,6 @@ type File struct {
 	FileInfo
 	size          uint32
 	OverlayOffset int64
-	f             *os.File
 	opts          *Options
 	logger        *log.Helper
 }
@@ -116,25 +116,22 @@ type Options struct {
 	OmitCLRMetadata bool
 }
 
-// New instantiates a file instance with options given a file name.
-func New(name string, opts *Options) (*File, error) {
-	f, err := os.Open(name)
+// Open instantiates a file instance with options given a file name.
+func Open(name string, opts *Options) (*File, error) {
+	file, err := os.Open(name)
 	if err != nil {
 		return nil, err
 	}
-
-	return NewFile(f, opts)
+	defer file.Close()
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return nil, err
+	}
+	return New(data, opts)
 }
 
-// NewFile instantiates a file instance with options given a file handle.
-func NewFile(f *os.File, opts *Options) (*File, error) {
-	// Memory map the file instead of using read/write.
-	data, err := mmap.Map(f, mmap.RDONLY, 0)
-	if err != nil {
-		f.Close()
-		return nil, err
-	}
-
+// New instantiates a file instance with options given a file handle.
+func New(data []byte, opts *Options) (*File, error) {
 	file := File{}
 	if opts != nil {
 		file.opts = opts
@@ -151,7 +148,7 @@ func NewFile(f *os.File, opts *Options) (*File, error) {
 
 	var logger log.Logger
 	if file.opts.Logger == nil {
-		logger = log.NewStdLogger(os.Stdout)
+		logger = log.NewStdLogger(io.Discard)
 		file.logger = log.NewHelper(log.NewFilter(logger,
 			log.FilterLevel(log.LevelError)))
 	} else {
@@ -160,51 +157,7 @@ func NewFile(f *os.File, opts *Options) (*File, error) {
 
 	file.data = data
 	file.size = uint32(len(file.data))
-	file.f = f
 	return &file, nil
-}
-
-// NewBytes instantiates a file instance with options given a memory buffer.
-func NewBytes(data []byte, opts *Options) (*File, error) {
-
-	file := File{}
-	if opts != nil {
-		file.opts = opts
-	} else {
-		file.opts = &Options{}
-	}
-
-	if file.opts.MaxCOFFSymbolsCount == 0 {
-		file.opts.MaxCOFFSymbolsCount = MaxDefaultCOFFSymbolsCount
-	}
-	if file.opts.MaxRelocEntriesCount == 0 {
-		file.opts.MaxRelocEntriesCount = MaxDefaultRelocEntriesCount
-	}
-
-	var logger log.Logger
-	if file.opts.Logger == nil {
-		logger = log.NewStdLogger(os.Stdout)
-		file.logger = log.NewHelper(log.NewFilter(logger,
-			log.FilterLevel(log.LevelError)))
-	} else {
-		file.logger = log.NewHelper(opts.Logger)
-	}
-
-	file.data = data
-	file.size = uint32(len(file.data))
-	return &file, nil
-}
-
-// Close closes the File.
-func (pe *File) Close() error {
-	if pe.data != nil {
-		_ = pe.data.Unmap()
-	}
-
-	if pe.f != nil {
-		return pe.f.Close()
-	}
-	return nil
 }
 
 // Parse performs the file parsing for a PE binary.
