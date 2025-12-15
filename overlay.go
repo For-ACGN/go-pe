@@ -5,11 +5,11 @@
 package pe
 
 import (
+	"bytes"
 	"errors"
 	"io"
 )
 
-// error
 var (
 	ErrNoOverlayFound = errors.New("pe does not have overlay data")
 )
@@ -19,7 +19,8 @@ func (pe *File) NewOverlayReader() (*io.SectionReader, error) {
 	if pe.data == nil {
 		return nil, errors.New("pe: file reader is nil")
 	}
-	return io.NewSectionReader(pe.f, pe.OverlayOffset, 1<<63-1), nil
+	rd := bytes.NewReader(pe.data)
+	return io.NewSectionReader(rd, pe.OverlayOffset, 1<<63-1), nil
 }
 
 // Overlay returns the overlay of the PE file.
