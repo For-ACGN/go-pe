@@ -53,9 +53,9 @@ var peVersionResourceTests = []struct {
 func TestParseVersionResources(t *testing.T) {
 	for _, tt := range peVersionResourceTests {
 		t.Run(tt.in, func(t *testing.T) {
-			file, err := New(tt.in, &Options{})
+			file, err := Open(tt.in, &Options{})
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in, err)
 			}
 
 			got := file.Parse()

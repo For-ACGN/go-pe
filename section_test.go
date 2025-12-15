@@ -45,9 +45,9 @@ func TestParseSectionHeaders(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.in, func(t *testing.T) {
-			file, err := New(tt.in, &Options{})
+			file, err := Open(tt.in, &Options{})
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in, err)
 			}
 			err = file.Parse()
 			if err != nil {

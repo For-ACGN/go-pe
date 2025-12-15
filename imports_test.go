@@ -86,9 +86,9 @@ func TestImportDirectory(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.in, func(t *testing.T) {
 			ops := Options{Fast: true}
-			file, err := New(tt.in, &ops)
+			file, err := Open(tt.in, &ops)
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in, err)
 			}
 
 			err = file.Parse()
@@ -138,9 +138,9 @@ func TestImpHash(t *testing.T) {
 		{getAbsoluteFilePath("test/0585495341e0ffaae1734acb78708ff55cd3612d844672d37226ef63d12652d0"), "e4290fa6afc89d56616f34ebbd0b1f2c"},
 	} {
 		t.Run(tt.in, func(t *testing.T) {
-			file, err := New(tt.in, &Options{})
+			file, err := Open(tt.in, &Options{})
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in, err)
 			}
 			if err := file.Parse(); err != nil {
 				t.Fatalf("Parse(%s) failed, reason: %v", tt.in, err)

@@ -165,9 +165,9 @@ func TestLoadConfigDirectory(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.in, func(t *testing.T) {
 			ops := Options{Fast: true}
-			file, err := New(tt.in, &ops)
+			file, err := Open(tt.in, &ops)
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in, err)
 			}
 
 			err = file.Parse()
@@ -221,9 +221,9 @@ func TestLoadConfigDirectorySEHHandlers(t *testing.T) {
 		t.Run(tt.in, func(t *testing.T) {
 
 			ops := Options{Fast: true}
-			file, err := New(tt.in, &ops)
+			file, err := Open(tt.in, &ops)
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in, err)
 			}
 
 			err = file.Parse()
@@ -302,9 +302,9 @@ func TestLoadConfigDirectoryControlFlowGuardFunctions(t *testing.T) {
 		t.Run(tt.in, func(t *testing.T) {
 
 			ops := Options{Fast: false}
-			file, err := New(tt.in, &ops)
+			file, err := Open(tt.in, &ops)
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in, err)
 			}
 
 			err = file.Parse()
@@ -391,9 +391,9 @@ func TestLoadConfigDirectoryControlFlowGuardIAT(t *testing.T) {
 		t.Run(tt.in, func(t *testing.T) {
 
 			ops := Options{Fast: false}
-			file, err := New(tt.in, &ops)
+			file, err := Open(tt.in, &ops)
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in, err)
 			}
 
 			err = file.Parse()
@@ -456,9 +456,9 @@ func TestLoadConfigDirectoryControlFlowGuardLongJump(t *testing.T) {
 		t.Run(tt.in, func(t *testing.T) {
 
 			ops := Options{Fast: true}
-			file, err := New(tt.in, &ops)
+			file, err := Open(tt.in, &ops)
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in, err)
 			}
 
 			err = file.Parse()
@@ -554,9 +554,9 @@ func TestLoadConfigDirectoryHybridPE(t *testing.T) {
 		t.Run(tt.in, func(t *testing.T) {
 
 			ops := Options{Fast: false}
-			file, err := New(tt.in, &ops)
+			file, err := Open(tt.in, &ops)
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in, err)
 			}
 
 			err = file.Parse()
@@ -627,9 +627,9 @@ func TestLoadConfigDirectoryDVRT(t *testing.T) {
 		t.Run(tt.in, func(t *testing.T) {
 
 			ops := Options{Fast: true}
-			file, err := New(tt.in, &ops)
+			file, err := Open(tt.in, &ops)
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in, err)
 			}
 
 			err = file.Parse()
@@ -765,9 +765,9 @@ func TestLoadConfigDirectoryDVRTRetpolineType(t *testing.T) {
 		t.Run(tt.in, func(t *testing.T) {
 
 			ops := Options{Fast: true}
-			file, err := New(tt.in, &ops)
+			file, err := Open(tt.in, &ops)
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in, err)
 			}
 
 			err = file.Parse()
@@ -871,9 +871,9 @@ func TestLoadConfigDirectoryEnclave(t *testing.T) {
 		t.Run(tt.in, func(t *testing.T) {
 
 			ops := Options{Fast: true}
-			file, err := New(tt.in, &ops)
+			file, err := Open(tt.in, &ops)
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in, err)
 			}
 
 			err = file.Parse()
@@ -955,9 +955,9 @@ func TestLoadConfigDirectoryVolatileMetadata(t *testing.T) {
 		t.Run(tt.in, func(t *testing.T) {
 
 			ops := Options{Fast: true}
-			file, err := New(tt.in, &ops)
+			file, err := Open(tt.in, &ops)
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in, err)
 			}
 
 			err = file.Parse()

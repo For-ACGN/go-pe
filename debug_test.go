@@ -94,9 +94,9 @@ func TestDebugDirectoryCodeView(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.in.filepath, func(t *testing.T) {
 			ops := Options{Fast: true}
-			file, err := New(tt.in.filepath, &ops)
+			file, err := Open(tt.in.filepath, &ops)
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in.filepath, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in.filepath, err)
 			}
 
 			err = file.Parse()
@@ -192,9 +192,9 @@ func TestDebugDirectoryPOGO(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.in.filepath, func(t *testing.T) {
 			ops := Options{Fast: true}
-			file, err := New(tt.in.filepath, &ops)
+			file, err := Open(tt.in.filepath, &ops)
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in.filepath, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in.filepath, err)
 			}
 
 			err = file.Parse()
@@ -299,9 +299,9 @@ func TestDebugDirectoryREPRO(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.in.filepath, func(t *testing.T) {
 			ops := Options{Fast: true}
-			file, err := New(tt.in.filepath, &ops)
+			file, err := Open(tt.in.filepath, &ops)
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in.filepath, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in.filepath, err)
 			}
 
 			err = file.Parse()
@@ -378,9 +378,9 @@ func TestDebugDirectoryExDLLCharacteristics(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.in.filepath, func(t *testing.T) {
 			ops := Options{Fast: true}
-			file, err := New(tt.in.filepath, &ops)
+			file, err := Open(tt.in.filepath, &ops)
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in.filepath, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in.filepath, err)
 			}
 
 			err = file.Parse()
@@ -466,9 +466,9 @@ func TestDebugDirectoryVCFeature(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.in.filepath, func(t *testing.T) {
 			ops := Options{Fast: true}
-			file, err := New(tt.in.filepath, &ops)
+			file, err := Open(tt.in.filepath, &ops)
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in.filepath, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in.filepath, err)
 			}
 
 			err = file.Parse()
@@ -586,9 +586,9 @@ func TestDebugDirectoryFPO(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.in.filepath, func(t *testing.T) {
 			ops := Options{Fast: true}
-			file, err := New(tt.in.filepath, &ops)
+			file, err := Open(tt.in.filepath, &ops)
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in.filepath, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in.filepath, err)
 			}
 
 			err = file.Parse()

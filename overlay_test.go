@@ -27,9 +27,9 @@ var overlayTests = []struct {
 func TestFile_NewOverlayReader(t *testing.T) {
 	for _, tt := range overlayTests {
 		t.Run(tt.in, func(t *testing.T) {
-			file, err := New(tt.in, &Options{})
+			file, err := Open(tt.in, &Options{})
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in, err)
 			}
 
 			if err := file.Parse(); err != nil {

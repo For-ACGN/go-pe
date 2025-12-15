@@ -71,9 +71,9 @@ func TestParseExceptionDirectory(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.in, func(t *testing.T) {
 			ops := Options{Fast: true}
-			file, err := New(tt.in, &ops)
+			file, err := Open(tt.in, &ops)
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in, err)
 			}
 
 			err = file.Parse()

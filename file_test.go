@@ -5,7 +5,7 @@
 package pe
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 )
 
@@ -19,9 +19,9 @@ var peTests = []struct {
 func TestParse(t *testing.T) {
 	for _, tt := range peTests {
 		t.Run(tt.in, func(t *testing.T) {
-			file, err := New(tt.in, &Options{})
+			file, err := Open(tt.in, &Options{})
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in, err)
 			}
 
 			got := file.Parse()
@@ -35,9 +35,9 @@ func TestParse(t *testing.T) {
 func TestParseOmitDirectories(t *testing.T) {
 	for _, tt := range peTests {
 		t.Run(tt.in, func(t *testing.T) {
-			file, err := New(tt.in, &Options{OmitSecurityDirectory: true})
+			file, err := Open(tt.in, &Options{OmitSecurityDirectory: true})
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in, err)
 			}
 
 			got := file.Parse()
@@ -52,11 +52,11 @@ func TestParseOmitDirectories(t *testing.T) {
 	}
 }
 
-func TestNewBytes(t *testing.T) {
+func TestNew(t *testing.T) {
 	for _, tt := range peTests {
 		t.Run(tt.in, func(t *testing.T) {
-			data, _ := ioutil.ReadFile(tt.in)
-			file, err := NewBytes(data, &Options{})
+			data, _ := os.ReadFile(tt.in)
+			file, err := New(data, &Options{})
 			if err != nil {
 				t.Fatalf("NewBytes(%s) failed, reason: %v", tt.in, err)
 			}
@@ -85,9 +85,9 @@ func TestChecksum(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.in, func(t *testing.T) {
-			file, err := New(tt.in, &Options{})
+			file, err := Open(tt.in, &Options{})
 			if err != nil {
-				t.Fatalf("New(%s) failed, reason: %v", tt.in, err)
+				t.Fatalf("Open(%s) failed, reason: %v", tt.in, err)
 			}
 			err = file.Parse()
 			if err != nil {
