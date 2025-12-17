@@ -16,13 +16,11 @@ import (
 	"fmt"
 	"hash"
 	"io"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"runtime"
 	"sort"
-	"strings"
+	"syscall"
 	"time"
+	"unsafe"
 
 	"github.com/secDre4mer/pkcs7"
 )
@@ -438,61 +436,74 @@ func (pe *File) parseSecurityDirectory(rva, size uint32) error {
 // on-demand. As a consequence, this behavior leads to a non-deterministic
 // results. Go team then disabled the loading Windows root certs.
 func loadSystemRoots() (*x509.CertPool, error) {
-
-	needSync := true
-	roots := x509.NewCertPool()
-
-	// Create a temporary dir in the OS temp folder
-	// if it does not exists.
-	dir := filepath.Join(os.TempDir(), "certs")
-	info, err := os.Stat(dir)
-	if os.IsNotExist(err) {
-		if err = os.Mkdir(dir, 0755); err != nil {
-			return roots, err
-		}
-	} else {
-		now := time.Now()
-		modTime := info.ModTime()
-		diff := now.Sub(modTime).Hours()
-		if diff < 24 {
-			needSync = false
-		}
-	}
-
-	// Use certutil to download all the root certs.
-	if needSync {
-		cmd := exec.Command("certutil", "-syncWithWU", dir)
-		hideWindow(cmd)
-		err := cmd.Run()
-		if err != nil {
-			return roots, err
-		}
-		if cmd.ProcessState.ExitCode() != 0 {
-			return roots, err
-		}
-	}
-
-	files, err := os.ReadDir(dir)
+	certs, err := loadSystemCerts()
 	if err != nil {
-		return roots, err
+		return nil, fmt.Errorf("failed to load system certificate pool: %s", err)
 	}
+	pool := x509.NewCertPool()
+	for i := 0; i < len(certs); i++ {
+		pool.AddCert(certs[i])
+	}
+	return pool, nil
+}
 
-	for _, f := range files {
-		if !strings.HasSuffix(f.Name(), ".crt") {
-			continue
-		}
-		certPath := filepath.Join(dir, f.Name())
-		certData, err := os.ReadFile(certPath)
+// reference:
+// https://docs.microsoft.com/en-us/windows/win32/api/wincrypt/nf-wincrypt-certopensystemstorea
+
+func loadSystemCerts() ([]*x509.Certificate, error) {
+	var certs [][]byte
+	names := []string{"ROOT", "CA", "MY"}
+	for i := 0; i < len(names); i++ {
+		raw, err := loadSystemCertsWithName(names[i])
 		if err != nil {
-			return roots, err
+			return nil, err
 		}
-
-		if crt, err := x509.ParseCertificate(certData); err == nil {
-			roots.AddCert(crt)
+		certs = append(certs, raw...)
+	}
+	var pool []*x509.Certificate
+	for i := 0; i < len(certs); i++ {
+		cert, err := x509.ParseCertificate(certs[i])
+		if err == nil {
+			pool = append(pool, cert)
 		}
 	}
+	return pool, nil
+}
 
-	return roots, nil
+// loadSystemCertsWithName is used to load system certificates by name.
+// Usually name is "ROOT" or "CA".
+func loadSystemCertsWithName(name string) ([][]byte, error) {
+	n, err := syscall.UTF16PtrFromString(name)
+	if err != nil {
+		return nil, err
+	}
+	store, err := syscall.CertOpenSystemStore(0, n)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = syscall.CertCloseStore(store, 0) }()
+	var certs [][]byte
+	var cert *syscall.CertContext
+	for {
+		cert, err = syscall.CertEnumCertificatesInStore(store, cert)
+		if err != nil {
+			if errno, ok := err.(syscall.Errno); ok {
+				if errno == 0x80092004 { // 0x80092004 is CRYPT_E_NOT_FOUND
+					break
+				}
+			}
+			return nil, err
+		}
+		if cert == nil {
+			break
+		}
+		// copy the buf, since ParseCertificate does not create its own copy.
+		buf := (*[1024 * 1024]byte)(unsafe.Pointer(cert.EncodedCert))[:] // #nosec
+		buf2 := make([]byte, cert.Length)
+		copy(buf2, buf)
+		certs = append(certs, buf2)
+	}
+	return certs, nil
 }
 
 type SpcIndirectDataContent struct {
