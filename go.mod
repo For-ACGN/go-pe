@@ -3,7 +3,8 @@ module github.com/saferwall/pe
 go 1.18
 
 require (
-	github.com/secDre4mer/pkcs7 v0.0.0-20240322103146-665324a4461d
-
-	golang.org/x/text v0.20.0
+	github.com/ayoubfaouzi/pkcs7 v0.2.2
+	golang.org/x/text v0.22.0
 )
+
+require golang.org/x/crypto v0.33.0 // indirect
