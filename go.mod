@@ -1,4 +1,4 @@
-module github.com/saferwall/pe
+module github.com/For-ACGN/go-pe
 
 go 1.18
 
