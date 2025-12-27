@@ -20,8 +20,8 @@ import (
 	"unicode"
 	"unsafe"
 
-	"github.com/saferwall/pe"
-	"github.com/saferwall/pe/log"
+	"github.com/For-ACGN/go-pe"
+	"github.com/For-ACGN/go-pe/log"
 )
 
 var (
