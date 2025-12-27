@@ -9,7 +9,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/saferwall/pe/log"
+	"github.com/For-ACGN/go-pe/log"
 )
 
 // A File represents an open PE file.
